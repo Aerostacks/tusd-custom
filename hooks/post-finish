@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+
+EVENT=$(cat)
+UPLOAD_PATH=$(printf '%s' "$EVENT" | jq -r '.Event.Upload.Storage.Path')
+INFO_PATH=$(printf '%s' "$EVENT" | jq -r '.Event.Upload.Storage.InfoPath')
+UPLOAD_ID=$(printf '%s' "$EVENT" | jq -r '.Event.Upload.ID')
+DEST_DIR="$(dirname "$UPLOAD_PATH")/$UPLOAD_ID-extracted"
+
+mkdir -p "$DEST_DIR"
+if tar -I zstd -xf "$UPLOAD_PATH" -C "$DEST_DIR" 2>&1; then
+  rm -f "$UPLOAD_PATH" "$INFO_PATH"
+  echo "Extracted $UPLOAD_ID to $DEST_DIR" >&2
+else
+  echo "Failed to extract $UPLOAD_ID (not a tar.zst?)" >&2
+fi
