@@ -8,7 +8,7 @@ UPLOAD_ID=$(printf '%s' "$EVENT" | jq -r '.Event.Upload.ID')
 DEST_DIR="$(dirname "$UPLOAD_PATH")/$UPLOAD_ID-extracted"
 
 mkdir -p "$DEST_DIR"
-if tar -I zstd -xf "$UPLOAD_PATH" -C "$DEST_DIR" 2>&1; then
+if zstd -dc "$UPLOAD_PATH" | tar xf - -C "$DEST_DIR"; then
   rm -f "$UPLOAD_PATH" "$INFO_PATH"
   echo "Extracted $UPLOAD_ID to $DEST_DIR" >&2
 else
