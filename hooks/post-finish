@@ -5,7 +5,15 @@ EVENT=$(cat)
 UPLOAD_PATH=$(printf '%s' "$EVENT" | jq -r '.Event.Upload.Storage.Path')
 INFO_PATH=$(printf '%s' "$EVENT" | jq -r '.Event.Upload.Storage.InfoPath')
 UPLOAD_ID=$(printf '%s' "$EVENT" | jq -r '.Event.Upload.ID')
-DEST_DIR="$(dirname "$UPLOAD_PATH")/$UPLOAD_ID-extracted"
+META_PATH=$(printf '%s' "$EVENT" | jq -r '.Event.Upload.MetaData.path // empty')
+
+DATA_DIR="$(dirname "$UPLOAD_PATH")"
+
+if [ -n "$META_PATH" ]; then
+  DEST_DIR="$DATA_DIR/$META_PATH"
+else
+  DEST_DIR="$DATA_DIR/$UPLOAD_ID-extracted"
+fi
 
 mkdir -p "$DEST_DIR"
 if zstd -dc "$UPLOAD_PATH" | tar xf - -C "$DEST_DIR"; then
