@@ -34,5 +34,5 @@ jobs:
       - name: Deploy
         run: |
           docker pull ${IMAGE}:main
-          cd ~/unified
+          cd /home/r2d2/unified
           docker compose -f docker-compose.data.yml up -d tusd_missiondata
