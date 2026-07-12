@@ -1,0 +1,44 @@
+name: Docker Build & Push
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/aerostacks/tusd-custom
+
+jobs:
+  build:
+    runs-on: [self-hosted, r2d2]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push
+        run: |
+          BRANCH="${GITHUB_REF##*/}"
+          DOCKER_BUILDKIT=1 docker build -t "${IMAGE}:${BRANCH}" .
+          docker push "${IMAGE}:${BRANCH}"
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip deploy]')
+    runs-on: [self-hosted, r2d2]
+    steps:
+      - name: Set up SSH
+        run: |
+          eval "$(ssh-agent -s)"
+          ssh-add - <<< "${{ secrets.DEPLOY_SSH_KEY }}"
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          mkdir -p ~/.ssh
+          ssh-keyscan r2d2 >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Deploy
+        run: |
+          ssh r2d2@r2d2 "docker pull ${IMAGE}:main && cd ~/unified && docker compose -f docker-compose.data.yml up -d tusd_missiondata"
