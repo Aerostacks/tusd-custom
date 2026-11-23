@@ -1,6 +1,6 @@
 # tusd-custom
 
-Custom tusd image with zstd support for extracting uploaded mission archives.
+The tusd image used for mission uploads, with the tools its hooks need.
 
 ## What it does
 
@@ -8,29 +8,36 @@ Extends `tusproject/tusd:latest` with:
 - `zstd` for decompressing `.tar.zst` archives
 - `jq` for parsing hook event payloads
 
-The `post-finish` hook extracts uploaded tar.zst archives into a sibling directory after upload completes.
+The image carries no hooks. The `post-finish` hook that hands uploads to
+hamburger and keeps a copy under `/data/processing` lives in
+[infra-config](https://github.com/Aerostacks/infra-config) at
+`unified/tusd-hooks/post-finish`, next to the compose file that mounts it.
 
 ## Build & Push
 
 ```bash
-docker build -t ghcr.io/aerostacks/tusd-custom:latest .
-docker push ghcr.io/aerostacks/tusd-custom:latest
+just build
 ```
 
 ## Usage
 
-Replace `tusproject/tusd:latest` with `ghcr.io/aerostacks/tusd-custom:latest` in your docker-compose and mount the hooks directory:
+See `tusd_missiondata` in infra-config's `unified/docker-compose.data.yml`.
+Mount the hooks directory read-only, so an upload can never change the hook
+it triggers:
 
 ```yaml
 services:
   tusd_missiondata:
-    image: ghcr.io/aerostacks/tusd-custom:latest
+    image: ghcr.io/aerostacks/tusd-custom:main
     volumes:
-      - ./hooks:/srv/tusd-hooks
+      - ./tusd-hooks:/srv/tusd-hooks:ro
       - /mnt/data/storage/missiondata:/data/missiondata
+      - /mnt/data/storage/processing:/data/processing
     command:
       - -port
       - "7000"
+      - -max-size
+      - "8589934592"
       - -upload-dir
       - /data/missiondata
       - -base-path
